@@ -171,7 +171,7 @@ sound_buffer: resd MAX_SAMPLES * 2
 
 section _shader data align=1
 %if 1
-%include "shaders/sampler_2D_vid_glsl.inc"
+%include "shader_glsl.inc"
 %else
 _intro_glsl:
 	db 'uniform int t;'
@@ -236,7 +236,7 @@ _entrypoint:
 	;mov dword [ebx], 4
 	FNCALL waveOutGetPosition, dword [waveout], mmtime, 12
 	mov ebx, dword [mmtime + 4]
-	cmp ebx, (MAX_SAMPLES - SAMPLE_RATE * 6) * 8
+	cmp ebx, MAX_SAMPLES * 8
 	jge exit
 
 	push 01bH ;GetAsyncKeyState

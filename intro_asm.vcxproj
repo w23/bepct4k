@@ -152,7 +152,7 @@
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkObjects>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='ReleaseSlow|Win32'">false</LinkObjects>
     </CustomBuild>
-    <CustomBuild Include="jl17.asm">
+    <CustomBuild Include="intro.asm">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"nasmw.exe" -f win32 -DDEBUG -i $(ProjectDir)4klang_win32\ "%(Identity)" -o "$(ProjectDir)$(Configuration)\%(Filename).obj"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Assembling %(Identity)</Message>

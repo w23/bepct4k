@@ -1,19 +1,11 @@
-#ifdef CAPTURE
-//#define XRES 1920
-//#define YRES 1080
-#endif
-//#define XRES 1920
-//#define YRES 1080
-
 #define COUNTOF(a) (sizeof(a)/sizeof(a[0]))
 
-#ifndef XRES
-#define XRES 1280
+#ifndef WIDTH
+#define WIDTH 1920
 #endif
-#ifndef YRES
-#define YRES 720
+#ifndef HEIGHT
+#define HEIGHT 1080
 #endif
-//#define DO_RANGES
 
 #define SOUND
 
@@ -56,25 +48,12 @@ int _fltused = 1;
 #define oglCreateShaderProgramv ((PFNGLCREATESHADERPROGRAMVPROC)wglGetProcAddress("glCreateShaderProgramv"))
 #define oglUseProgram ((PFNGLUSEPROGRAMPROC)wglGetProcAddress("glUseProgram"))
 #define oglGetUniformLocation ((PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation"))
-#define oglUniform1i ((PFNGLUNIFORM1IPROC)wglGetProcAddress("glUniform1i"))
 #define oglUniform1f ((PFNGLUNIFORM1FPROC)wglGetProcAddress("glUniform1f"))
-#define oglUniform2f ((PFNGLUNIFORM2FPROC)wglGetProcAddress("glUniform2f"))
-#define oglUniform1fv ((PFNGLUNIFORM1FVPROC)wglGetProcAddress("glUniform1fv"))
-#define oglGenFramebuffers ((PFNGLGENFRAMEBUFFERSPROC)wglGetProcAddress("glGenFramebuffers"))
-#define oglBindFramebuffer ((PFNGLBINDFRAMEBUFFERPROC)wglGetProcAddress("glBindFramebuffer"))
-#define oglFramebufferTexture2D ((PFNGLFRAMEBUFFERTEXTURE2DPROC)wglGetProcAddress("glFramebufferTexture2D"))
 #else
 #define oglCreateShaderProgramv gl.CreateShaderProgramv
 #define oglUseProgram gl.UseProgram
 #define oglGetUniformLocation gl.GetUniformLocation
-#define oglUniform1i gl.Uniform1i
 #define oglUniform1f gl.Uniform1f
-#define oglUniform2f gl.Uniform2f
-#define oglUniform1fv gl.Uniform1fv
-#define oglGenFramebuffers gl.GenFramebuffers
-#define oglBindFramebuffer gl.BindFramebuffer
-#define oglFramebufferTexture2D gl.FramebufferTexture2D
-#define oglActiveTexture gl.ActiveTexture
 #endif
 
 #elif defined(__linux__)
@@ -87,13 +66,7 @@ int _fltused = 1;
 #define oglCreateShaderProgramv glCreateShaderProgramv
 #define oglUseProgram glUseProgram
 #define oglGetUniformLocation glGetUniformLocation
-#define oglUniform1i glUniform1i
 #define oglUniform1f glUniform1f
-#define oglUniform2f glUniform2f
-#define oglUniform1fv glUniform1fv
-#define oglGenFramebuffers glGenFramebuffers
-#define oglBindFramebuffer glBindFramebuffer
-#define oglFramebufferTexture2D glFramebufferTexture2D
 #endif
 
 #ifdef _WIN32
@@ -110,7 +83,7 @@ int _fltused = 1;
 #define STR(x) LOL(x)
 static const char *FFMPEG_CAPTURE_INPUT = "ffmpeg.exe"
 " -y -f rawvideo -vcodec rawvideo"
-" -s " STR(XRES) "x" STR(YRES) " -pix_fmt rgb24"
+" -s " STR(WIDTH) "x" STR(HEIGHT) " -pix_fmt rgb24"
 " -framerate " STR(CAPTURE_FRAMERATE)
 " -i -"
 " -f f32le -ar 44100 -ac 2"
@@ -125,7 +98,7 @@ static const char *FFMPEG_CAPTURE_INPUT = "ffmpeg.exe"
 //" -tune film"
 " -tune grain"
 //" -x264-params keyint=600:bframes=3:scenecut=60:ref=3:qpmin=10:qpstep=8:vbv-bufsize=24000:vbv-maxrate=24000:merange=32"
-" capture_" STR(XRES) "x" STR(YRES) ".mp4"
+" capture_" STR(WIDTH) "x" STR(HEIGHT) ".mp4"
 ;
 #endif
 
@@ -158,18 +131,7 @@ FUNCLIST_DO(PFNGLLINKPROGRAMPROC, LinkProgram)
 	FUNCLIST_DO(PFNGLCREATESHADERPROGRAMVPROC, CreateShaderProgramv) \
 	FUNCLIST_DO(PFNGLUSEPROGRAMPROC, UseProgram) \
 	FUNCLIST_DO(PFNGLGETUNIFORMLOCATIONPROC, GetUniformLocation) \
-	FUNCLIST_DO(PFNGLUNIFORM1IPROC, Uniform1i) \
 	FUNCLIST_DO(PFNGLUNIFORM1FPROC, Uniform1f) \
-	FUNCLIST_DO(PFNGLUNIFORM2FPROC, Uniform2f) \
-	FUNCLIST_DO(PFNGLUNIFORM1FVPROC, Uniform1fv) \
-	FUNCLIST_DO(PFNGLGENFRAMEBUFFERSPROC, GenFramebuffers) \
-	FUNCLIST_DO(PFNGLBINDFRAMEBUFFERPROC, BindFramebuffer) \
-	FUNCLIST_DO(PFNGLFRAMEBUFFERTEXTURE2DPROC, FramebufferTexture2D) \
-
- //FUNCLIST_DO(PFNGLACTIVETEXTUREPROC, ActiveTexture) \
-
-  //FUNCLIST_DO(PFNGLUNIFORM2FPROC, Uniform2f) \
-  FUNCLIST_DO(PFNGLUNIFORM1FPROC, Uniform1f) \
 
 #ifndef DEBUG
 #define FUNCLIST_DBG
@@ -185,33 +147,11 @@ FUNCLIST_DO(PFNGLLINKPROGRAMPROC, LinkProgram)
 #pragma bss_seg(".sound_buffer")
 static SAMPLE_TYPE sound_buffer[MAX_SAMPLES * 2];
 
-enum {
-	Pass_2Dfx1,
-	//Pass_2Dfx2,
-//	Pass_Blit,
-	Pass_COUNT
-};
-
-/*
-enum {
-	//Tex_Random,
-	//Tex_Text,
-	Tex_2Dfx1,
-	Tex_2Dfx2,
-	//Tex_Frame,
-	Tex_COUNT
-};
-*/
-
 #pragma bss_seg(".program")
-static GLuint program[Pass_COUNT];
-#pragma bss_seg(".texture")
-//static GLuint texture[Tex_COUNT];
-#pragma bss_seg(".fb")
-//static GLuint fb[Pass_COUNT];
+static GLuint program;
 
 #ifdef CAPTURE
-static GLubyte backbufferData[XRES*YRES * 3];
+static GLubyte backbufferData[WIDTH*HEIGHT * 3];
 #endif
 
 #ifdef _WIN32
@@ -229,8 +169,7 @@ static struct {
 	FUNCLISTS
 } gl;
 #undef FUNCLIST_DO
-#endif
-
+#endif // WINGL_INPLACE
 
 #pragma data_seg(".pfd")
 static const PIXELFORMATDESCRIPTOR pfd = {
@@ -240,9 +179,9 @@ static const PIXELFORMATDESCRIPTOR pfd = {
 #pragma data_seg(".devmode")
 static const DEVMODE screenSettings = { {0},
 	#if _MSC_VER < 1400
-	0,0,148,0,0x001c0000,{0},0,0,0,0,0,0,0,0,0,{0},0,32,XRES,YRES,0,0,      // Visual C++ 6.0
+	0,0,148,0,0x001c0000,{0},0,0,0,0,0,0,0,0,0,{0},0,32,WIDTH,HEIGHT,0,0,      // Visual C++ 6.0
 	#else
-	0,0,156,0,0x001c0000,{0},0,0,0,0,0,{0},0,32,XRES,YRES,{0}, 0,           // Visual Studio 2005+
+	0,0,156,0,0x001c0000,{0},0,0,0,0,0,{0},0,32,WIDTH,HEIGHT,{0}, 0,           // Visual Studio 2005+
 	#endif
 	#if(WINVER >= 0x0400)
 	0,0,0,0,0,0,
@@ -378,193 +317,25 @@ static __forceinline GLuint compileProgram(const char *fragment) {
 	return pid;
 }
 
-#pragma code_seg(".initTexture")
-static /*__forceinline*/ void initTexture(GLuint tex, int w, int h, int comp, int type, void *data) {
-	glBindTexture(GL_TEXTURE_2D, tex);
-	GLCHECK();
-	glTexImage2D(GL_TEXTURE_2D, 0, comp, w, h, 0, GL_RGBA, type, data);
-	GLCHECK();
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	/*
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	*/
-}
 
-#if 0
-#pragma code_seg(".initFb")
-static /*__forceinline*/ void initFb(GLuint fb, GLuint tex1/*, GLuint tex2*/) {
-	oglBindFramebuffer(GL_FRAMEBUFFER, fb);
-	GLCHECK();
-	oglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex1, 0);
-	GLCHECK();
-	//if (tex2 > 0)
-	//oglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex2, 0);
-	//GLCHECK();
-}
-#endif
-
-int itime;
-
-#if 0
-#pragma code_seg(".paint")
-static void paint(GLuint prog/*, GLuint tex, GLuint dst_fb*/) {
-//	oglBindFramebuffer(GL_FRAMEBUFFER, dst_fb);
-//	GLCHECK();
-	oglUseProgram(prog);
-	GLCHECK();
-	//oglUniform1i(oglGetUniformLocation(prog, "N"), 0);
-	//glGetError();
-	//glBindTexture(GL_TEXTURE_2D, tex);
-	//glGetError();
-	oglUniform1i(oglGetUniformLocation(prog, "T"), 0);
-	glGetError();
-	//oglUniform1i(oglGetUniformLocation(prog, "F"), 1);
-	//glGetError();
-	oglUniform1i(oglGetUniformLocation(prog, "s"), itime);
-	glGetError();
-	//const float t = (float)itime / (SAMPLES_PER_TICK * sizeof(SAMPLE_TYPE) * 2);
-	//oglUniform1f(oglGetUniformLocation(prog, "t"), t);// (float)(itime) / BYTES_PER_TICK);
-	//glGetError();
-	//oglUniform2f(oglGetUniformLocation(prog, "RES"), w, YRES);
-	//glGetError();
-#if defined(CAPTURE) && defined(TILED)
-	{
-		int x, y;
-		for (y = 0; y < YRES; y += 64)
-			for (x = 0; x < XRES; x += 64) {
-				glRectf(
-					x * 2.f / XRES - 1,
-					y * 2.f / YRES - 1,
-					(x + 64) * 2.f / XRES - 1,
-					(y + 64) * 2.f / YRES - 1);
-				glFinish();
-			}
-	}
-#else
-	glRects(-1, -1, 1, 1);
-#endif
-	GLCHECK();
-}
-#endif
-
-#define FX_WIDTH 2048
-#define FX_HEIGHT 512
-
-//#define GEN_TEXT
-#ifdef GEN_TEXT
-#define TEXT_WIDTH 1024
-#define TEXT_HEIGHT 1024
-#define TEXT_FONT "Arial"
-#define TEXT_SIZE 144
-
-#pragma data_seg(".bitmapinfo")
-BITMAPINFO bitmap_info = { {
-		/*bitmap_info.bmiHeader.biSize =*/ sizeof(BITMAPINFOHEADER),
-		/*bitmap_info.bmiHeader.biWidth =*/ TEXT_WIDTH,
-		/*bitmap_info.bmiHeader.biHeight =*/ TEXT_HEIGHT,
-		/*bmiHeader.biPlanes*/ 1,
-		/*bitmap_info.bmiHeader.biBitCount =*/ 32,
-		/*bitmap_info.bmiHeader.biCompression =*/ BI_RGB,
-		0, 0, 0, 0, 0}, {0} };
-
-static __forceinline void initText() {
-	const HDC text_dc = CreateCompatibleDC(NULL);
-	void *bitmap_ptr = NULL;
-	const HBITMAP dib = CreateDIBSection(text_dc, &bitmap_info, DIB_RGB_COLORS, &bitmap_ptr, NULL, 0);
-	const HGDIOBJ obj = SelectObject(text_dc, dib);
-	RECT rect = { 0, 0, TEXT_WIDTH, TEXT_HEIGHT };
-	SetTextColor(text_dc, RGB(255, 255, 255));
-	SetBkMode(text_dc, TRANSPARENT);
-
-	int size = 0;
-	HFONT font = CreateFontA(TEXT_SIZE, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, /*CLEARTYPE_QUALITY*/ NONANTIALIASED_QUALITY, 0, TEXT_FONT);
-	SelectObject(text_dc, font);
-
-	// needs rect; keeps newlines
-	//DrawTextA(text_dc, l.ansi, -1, &rect, DT_CALCRECT);
-	//DrawTextA(text_dc, intro_glsl, -1, &rect, 0);
-	DrawTextA(text_dc, "jetlag\npast racer", -1, &rect, 0);
-			// DT_SINGLELINE | DT_NOCLIP);
-
-	//DeleteObject(font);
-
-	//initTexture(texture[Tex_Text], TEXT_WIDTH, TEXT_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, bitmap_ptr);
-
-	//DeleteObject(dib);
-	//DeleteDC(text_dc);
-}
-#endif // #ifdef GEN_TEXT
-
-#include "export.h"
-
-#pragma data_seg(".automation_uniforms")
-static float uniforms[AUTOMATION_SIZE + 3] = { 0,0,0, 0,0,0, 0,0,0, 0,0, 0, XRES, YRES};
-
-#pragma data_seg(".automation_player")
-#include "stameska_automation.h"
 
 #pragma code_seg(".introInit")
 static __forceinline void introInit() {
-	/*
-	unsigned int seed = 0;
-	for (int i = 0; i < 4 * NOISE_SIZE * NOISE_SIZE; ++i) {
-		seed = 1013904223ul + seed * 1664525ul;
-		noise_bytes[i] = (seed >> 18);
-	}
-	*/
-
-	/*
-	glGenTextures(Tex_COUNT, texture);
+	program = compileProgram(shader_glsl);
+	oglUseProgram(program);
 	GLCHECK();
-	oglGenFramebuffers(Pass_COUNT, fb);
-	GLCHECK();
-	*/
-
-	//initTexture(texture[Tex_Random], NOISE_SIZE, NOISE_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, noise_bytes);
-	//oglActiveTexture(GL_TEXTURE1);
-	//initText();
-	//oglActiveTexture(GL_TEXTURE1);
-	//initTexture(texture[Tex_Frame], XRES / 2, YRES, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	/*
-	initTexture(texture[Tex_2Dfx1], FX_WIDTH, FX_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	initFb(fb[Pass_2Dfx1], texture[Tex_2Dfx1]);
-	initTexture(texture[Tex_2Dfx2], FX_WIDTH, FX_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	initFb(fb[Pass_2Dfx2], texture[Tex_2Dfx2]);
-	*/
-
-	//initFb(fb[Pass_Main], texture[Tex_Frame]);
-
-	program[Pass_2Dfx1] = compileProgram(sampler_2D_vid_glsl_glsl);
-	oglUseProgram(program[Pass_2Dfx1]);
-	GLCHECK();
-	//program[Pass_Blit] = compileProgram(blitter_glsl);
-
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 #pragma code_seg(".introPaint")
-static __forceinline void introPaint() {
-	const float t = (float)itime / (4 * (float)SAMPLES_PER_TICK * sizeof(SAMPLE_TYPE) * 2);
-	//uniforms[AUTOMATION_SIZE] = t;
-	//automationUnpack(t);
-#if 0 && defined(__linux__)
-	printf("%f", t);
-	for (int i = 0; i < AUTOMATION_SIZE; ++i)
-		printf(" %f", uniforms[i]);
-	printf("\n");
-#endif
-	const int prog = program[Pass_2Dfx1];
-	glGetError();
-	oglUniform1f(oglGetUniformLocation(prog, "t"), t);
-	glGetError();
+static __forceinline void introPaint(float t) {
+	GLCHECK();
+	oglUniform1f(oglGetUniformLocation(program, "t"), t);
+	GLCHECK();
 	glRects(-1, -1, 1, 1);
 	GLCHECK();
 }
 
 #ifdef _WIN32
-
 #ifdef _DEBUG
 void checkResult(int result) {
 	if (result != 0)
@@ -582,9 +353,9 @@ void entrypoint(void) {
 #ifdef FULLSCREEN
 	ChangeDisplaySettings(&screenSettings, CDS_FULLSCREEN);
 	ShowCursor(0);
-	HDC hDC = GetDC(CreateWindow((LPCSTR)0xC018, 0, WS_POPUP | WS_VISIBLE, 0, 0, XRES, YRES, 0, 0, 0, 0));
+	HDC hDC = GetDC(CreateWindow((LPCSTR)0xC018, 0, WS_POPUP | WS_VISIBLE, 0, 0, WIDTH, HEIGHT, 0, 0, 0, 0));
 #else
-	HDC hDC = GetDC(CreateWindow("static", 0, WS_POPUP | WS_VISIBLE, 0, 0, XRES, YRES, 0, 0, 0, 0));
+	HDC hDC = GetDC(CreateWindow("static", 0, WS_POPUP | WS_VISIBLE, 0, 0, WIDTH, HEIGHT, 0, 0, 0, 0));
 #endif
 
 	// initalize opengl
@@ -678,11 +449,11 @@ void entrypoint(void) {
 		introPaint();
 		SwapBuffers(hDC);
 		*/
-		//ridiculously slow glCopyPixels(0, 0, XRES, YRES, GL_COLOR);
+		//ridiculously slow glCopyPixels(0, 0, WIDTH, HEIGHT, GL_COLOR);
 
 #ifdef CAPTURE
-		glReadPixels(0, 0, XRES, YRES, GL_RGB, GL_UNSIGNED_BYTE, backbufferData);
-		fwrite(backbufferData, 1, XRES*YRES * 3, captureStream);
+		glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, backbufferData);
+		fwrite(backbufferData, 1, WIDTH*HEIGHT * 3, captureStream);
 		fflush(captureStream);
 #endif
 
@@ -706,7 +477,6 @@ void entrypoint(void) {
 	ExitProcess(0);
 }
 #elif defined(__linux__)
-/* cc -Wall -Wno-unknown-pragmas `pkg-config --cflags --libs sdl` -lGL nwep.c -o nwep */
 #include <SDL.h>
 #include <pthread.h>
 
@@ -715,7 +485,6 @@ void entrypoint(void) {
 #endif
 
 #ifndef NO_AUDIO
-//void __4klang_render(void*);
 
 static int audio_cursor = 0;
 
@@ -740,18 +509,16 @@ void _start() {
 #ifndef NO_AUDIO
 	pthread_t audio_thread;
 	pthread_create(&audio_thread, 0, (void *(*)(void*))__4klang_render, sound_buffer);
-	//__4klang_render(lpSoundBuffer);
 #endif
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 #ifdef FULLSCREEN
-#undef FULLSCREEN
-//#define FULLSCREEN SDL_FULLSCREEN
+#define FULLSCREEN SDL_FULLSCREEN
 	SDL_ShowCursor(0);
 #else
 #define FULLSCREEN 0
 #endif
-	SDL_SetVideoMode(XRES, YRES, 32, SDL_OPENGL | FULLSCREEN);
-	glViewport(0, 0, XRES, YRES);
+	SDL_SetVideoMode(WIDTH, HEIGHT, 32, SDL_OPENGL | FULLSCREEN);
+	glViewport(0, 0, WIDTH, HEIGHT);
 	glClearColor(0,0,0,0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -784,20 +551,20 @@ void _start() {
 #ifdef CAPTURE
 		const uint32_t frame_end = SDL_GetTicks();
 		const uint32_t total_time = frame_end - global_start;
-		glReadPixels(0, 0, XRES, YRES, GL_RGB, GL_UNSIGNED_BYTE, backbufferData);
-		write(1, backbufferData, XRES * YRES * 3);
+		glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, backbufferData);
+		write(1, backbufferData, WIDTH * HEIGHT * 3);
 		fprintf(stderr, "frame %d/%d: %dms/frame, total: %ds/%llds, MBytes: %lld/%lld\n",
 			frame, total_frames, frame_end - frame_start,
 			total_time / 1000, (unsigned long long)total_time * total_frames / frame / 1000,
-			((unsigned long long)frame * XRES * YRES * 3) / 1024 / 1024,
-			((unsigned long long)total_frames * XRES * YRES * 3) / 1024 / 1024);
+			((unsigned long long)frame * WIDTH * HEIGHT * 3) / 1024 / 1024,
+			((unsigned long long)total_frames * WIDTH * HEIGHT * 3) / 1024 / 1024);
 		usleep(1000);
 		frame_start = frame_end;
 #endif
 
-#ifndef CAPTURE
+//#ifndef CAPTURE
 		SDL_GL_SwapBuffers();
-#endif
+//#endif
 	}
 
 #ifdef COMPACT

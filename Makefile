@@ -29,9 +29,9 @@ INTRO_WIN32_CRINKLER_OPTS = \
 	# /TINYIMPORT \ unportable
 	# 1k? /TINYHEADER
 
-all: stameska
-STAMESKA_BASEDIR = tool
-include $(STAMESKA_BASEDIR)/stameska.mk
+#all: stameska
+#STAMESKA_BASEDIR = tool
+#include $(STAMESKA_BASEDIR)/stameska.mk
 
 fast: $(INTRO)-fast.exe
 slow: $(INTRO)-slow.exe
@@ -52,7 +52,7 @@ $(INTRO)-slow.exe: $(INTRO_WIN32_OBJS)
 		$(INTRO_WIN32_OBJS) \
 		/OUT:$@
 
-$(OBJDIR_WIN32)/$(INTRO).asm.obj: shaders/sampler_2D_vid_glsl.inc
+$(OBJDIR_WIN32)/$(INTRO).asm.obj: shader_glsl.inc
 
 $(OBJDIR_WIN32)/%.asm.obj: %.asm
 	@mkdir -p $(dir $@)
@@ -92,10 +92,9 @@ $(OBJDIR)/4klang.o32: 4klang.asm ./4klang_linux/4klang.inc
 $(DUMP_AUDIO_EXE): $(DUMP_AUDIO_OBJS) $(OBJDIR)/4klang.o32
 	$(CC) -m32 $(LIBS) $^ -o $@
 
-#audio.raw: $(DUMP_AUDIO_EXE)
-	#$(DUMP_AUDIO_EXE) $@
+audio.raw: $(DUMP_AUDIO_EXE)
+	$(DUMP_AUDIO_EXE) $@
 
-#CRF=14
 CRF=23
 
 FFMPEG_ARGS = \
@@ -129,7 +128,7 @@ test_$(INTRO)_$(WIDTH)_$(HEIGHT).mp4: $(INTRO).capture audio.raw
 	-t 10 \
 	$@
 
-intro.c: shaders/sampler_2D_vid_glsl.h stameska_automation.h 4klang_linux/4klang.h
+intro.c: shaders/shader_glsl.h 4klang_linux/4klang.h
 
 $(INTRO).capture: intro.c
 	$(CC) -DXRES=$(WIDTH) -DYRES=$(HEIGHT) -O0 -ggdb3 -Wall -Wno-unknown-pragmas -I. \
