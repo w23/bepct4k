@@ -1,14 +1,7 @@
 BITS 32
 
-; manually copy from 4klang.inc
-%define SAMPLE_RATE	44100
-%define MAX_PATTERNS 98
-%define PATTERN_SIZE_SHIFT 4
-%define PATTERN_SIZE (1 << PATTERN_SIZE_SHIFT)
-%define	MAX_TICKS (MAX_PATTERNS*PATTERN_SIZE)
-%define	SAMPLES_PER_TICK 3675
-%define	MAX_SAMPLES	(SAMPLES_PER_TICK*MAX_TICKS)
-extern __4klang_render@4
+;%define DEBUG
+%define NOAUDIO
 
 %ifndef DEBUG
 WIDTH equ 1920
@@ -17,6 +10,7 @@ HEIGHT equ 1080
 %define AUDIO_THREAD
 %define GLCHECK
 %else
+%define NOAUDIO
 WIDTH equ 640
 HEIGHT equ 360
 %macro GLCHECK 0
@@ -26,6 +20,15 @@ HEIGHT equ 360
 	int 3
 %%ok:
 %endmacro
+%endif
+
+%ifndef NOAUDIO
+%include "4klang.inc"
+extern __4klang_render@4
+%else
+%define SAMPLE_RATE 44100
+%define MAX_SAMPLES 44100*120
+%define SAMPLES_PER_TICK 44100/16
 %endif
 
 ;GL_TEXTURE_2D EQU 0x0de1
@@ -56,6 +59,9 @@ WINAPI_FUNC ChangeDisplaySettingsA, 8
 %endif
 %ifdef AUDIO_THREAD
 WINAPI_FUNC CreateThread, 24
+%endif
+%ifdef DEBUG
+WINAPI_FUNC MessageBoxA, 16
 %endif
 WINAPI_FUNC ChoosePixelFormat, 8
 WINAPI_FUNC CreateWindowExA, 48
@@ -106,6 +112,10 @@ GL_FUNC glUniform1f
 ;GL_FUNC glBindFramebuffer
 ;GL_FUNC glFramebufferTexture2D
 ;GL_FUNC glUniform1fv
+
+%ifdef DEBUG
+GL_FUNC glGetProgramInfoLog
+%endif
 
 %ifdef DEBUG
 	WNDCLASS EQU static
@@ -169,11 +179,16 @@ section _sndbuf bss align=1
 tmp:
 sound_buffer: resd MAX_SAMPLES * 2
 
+%ifdef DEBUG
+section _infolog bss align=1
+infolog: resb 1024
+%endif
+
 section _shader data align=1
 %if 1
-%include "shader_glsl.inc"
+%include "shader.inc"
 %else
-_intro_glsl:
+_shader_frag:
 	db 'uniform int t;'
 	db 'float t = t/44100.;'
 	db 'void main(){gl_FragColor = vec4(sin(t));}'
@@ -181,16 +196,15 @@ _intro_glsl:
 
 section _shdrptr data align=1
 src_main:
-	dd _sampler_2D_vid_glsl_glsl
+	dd _shader_frag
 
 section _strings data align=1
 %ifdef DEBUG
 static: db "static", 0
 %endif
-t: db 't', 0
 
 section _text text align=1
-_entrypoint:
+_start:
 %if 1
 	%define ZERO 0
 %else
@@ -212,7 +226,7 @@ _entrypoint:
 	FNCALL wglMakeCurrent, ebp, eax
 	GLCHECK
 
-%ifndef DEBUG
+%ifndef NOAUDIO
 %ifdef AUDIO_THREAD
 	FNCALL CreateThread, ZERO, ZERO, __4klang_render@4, sound_buffer, ZERO, ZERO
 %else
@@ -222,6 +236,19 @@ _entrypoint:
 
 	FNCALL wglGetProcAddress, glCreateShaderProgramv
 	FNCALL eax, GL_FRAGMENT_SHADER, 1, src_main
+%if 0 ;def DEBUG
+	push infolog
+	push 0
+	push 1023
+	push eax
+	FNCALL wglGetProcAddress, glGetProgramInfoLog
+	call eax
+	push 0
+	push infolog
+	push infolog
+	push 0
+	call MessageBoxA
+%endif
 	mov esi, eax
 	FNCALL wglGetProcAddress, glUseProgram
 	FNCALL eax, esi
@@ -266,7 +293,7 @@ _entrypoint:
 	fdivp
 	pop ebx
 	fstp dword [esp]
-	push t
+	push _var_T
 	push esi
 	push glGetUniformLocation
 
