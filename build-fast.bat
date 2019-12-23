@@ -16,11 +16,11 @@ set OPTS= ^
 REM very slow unpack, avoid /TINYHEADER
 
 shader_minifier.exe --format nasm -o shader.inc shader.frag || exit /b 1
-nasmw.exe -fwin32 -o intro.o32 intro.asm || exit /b 2
+nasm.exe -fwin32 -o intro.o32 intro.asm || exit /b 2
 
 REM nasmw.exe -fwin32 -o 4klang.obj 4klang.asm || exit /b 3
 
-link.exe ^
+crinkler.exe ^
 	%OPTS% ^
 	/COMPMODE:FAST /REPORT:report-fast.html ^
 	%LIBS% ^

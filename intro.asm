@@ -6,7 +6,7 @@ BITS 32
 %ifndef DEBUG
 WIDTH equ 1920
 HEIGHT equ 1080
-%define FULLSCREEN
+;%define FULLSCREEN
 %define AUDIO_THREAD
 %define GLCHECK
 %else
