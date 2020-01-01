@@ -7,3 +7,5 @@ tags
 *.obj
 *.exe
 shader.inc
+deps/crinkler22
+deps/nasm-2.14.02
