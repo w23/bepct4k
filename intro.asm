@@ -1,18 +1,14 @@
 BITS 32
 
-;%define DEBUG
-%define NOAUDIO
-
-%ifndef DEBUG
 WIDTH equ 1920
 HEIGHT equ 1080
-;%define FULLSCREEN
+
+%ifndef DEBUG
+%define FULLSCREEN
 %define AUDIO_THREAD
 %define GLCHECK
 %else
-%define NOAUDIO
-WIDTH equ 640
-HEIGHT equ 360
+%define NO_AUDIO
 %macro GLCHECK 0
 	call glGetError
 	test eax, eax
@@ -22,7 +18,7 @@ HEIGHT equ 360
 %endmacro
 %endif
 
-%ifndef NOAUDIO
+%ifndef NO_AUDIO
 %include "4klang.inc"
 extern __4klang_render@4
 %else
@@ -118,7 +114,7 @@ GL_FUNC glGetProgramInfoLog
 %endif
 
 %ifdef DEBUG
-	WNDCLASS EQU static
+	WNDCLASS EQU static_
 %else
 	%define WNDCLASS 0xc018
 %endif
@@ -200,7 +196,7 @@ src_main:
 
 section _strings data align=1
 %ifdef DEBUG
-static: db "static", 0
+static_: db "static", 0
 %endif
 
 section _text text align=1
@@ -226,7 +222,7 @@ _start:
 	FNCALL wglMakeCurrent, ebp, eax
 	GLCHECK
 
-%ifndef NOAUDIO
+%ifndef NO_AUDIO
 %ifdef AUDIO_THREAD
 	FNCALL CreateThread, ZERO, ZERO, __4klang_render@4, sound_buffer, ZERO, ZERO
 %else
