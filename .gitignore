@@ -8,5 +8,15 @@ tags
 *.exe
 music.raw
 shader.inc
+*.vcxproj
+*.vcxproj.*
+.vs
+*.cmake
+CMakeCache.txt
+CMakeFiles
+*.dir
+*.sln
+Debug
+Win32
 deps/crinkler22
 deps/nasm-2.14.02
