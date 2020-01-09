@@ -6,6 +6,7 @@ tags
 *.zip
 *.obj
 *.exe
+music.raw
 shader.inc
 deps/crinkler22
 deps/nasm-2.14.02

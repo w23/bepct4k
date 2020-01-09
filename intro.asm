@@ -38,8 +38,6 @@ GL_FRAGMENT_SHADER EQU 0x8b30
 ;GL_FRAMEBUFFER EQU 0x8d40
 ;GL_COLOR_ATTACHMENT0 EQU 0x8ce0
 
-global _entrypoint
-
 %macro WINAPI_FUNC 2
 %if 1
 	extern __imp__ %+ %1 %+ @ %+ %2
