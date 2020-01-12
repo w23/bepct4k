@@ -1,0 +1,3 @@
+[submodule "kiyanka/atto"]
+	path = kiyanka/atto
+	url = http://github.com/w23/atto
