@@ -82,22 +82,30 @@ static void keyPress(ATimeUs timestamp, AKey key, int pressed) {
 		aAppTerminate(0);
 }
 
-static const char shader_vertex[] =
+static const char shader_vertex_passthrough[] =
 	"attribute vec2 av2_pos;\n"
 	"void main() {\n"
 		"gl_Position = vec4(av2_pos, 0., 1.);\n"
 	"}"
 ;
 
-/*
-static const char shader_fragment[] =
+static const char shader_fragment_blit[] =
+	"#version 130\n"
+	"uniform sampler2D frame;\n"
+	"uniform vec2 R;\n"
 	"void main() {\n"
-		"gl_FragColor = vec4(vv3_color, 1.);\n"
-	"}"
+		"vec2 ts = vec2(textureSize(frame, 0));\n"
+		"vec2 k = ts / R;\n"
+		"float scale = max(k.x, k.y);\n"
+		"vec2 off = (R-ts/scale)/2. * vec2(step(k.x, k.y), step(k.y, k.x));\n"
+		"vec2 tc = scale * (gl_FragCoord.xy - off);\n"
+		"gl_FragColor = vec4(0.);\n"
+		"if (tc.x >= 0. && tc.x < ts.x && tc.y >= 0. && tc.y < ts.y)\n"
+			"gl_FragColor = texture2D(frame, tc / (ts + vec2(1.)));\n"
+	"}\n"
 ;
-*/
 
-static const float vertexes[] = {
+static const float vertexes_full_quad[] = {
 	1.f, -1.f,
 	1.f, 1.f,
 	-1.f, -1.f,
@@ -105,46 +113,108 @@ static const float vertexes[] = {
 };
 
 static struct {
-	AGLAttribute attr[1];
-	AGLProgramUniform pun[1];
-	AGLDrawSource draw;
 	AGLDrawMerge merge;
-	AGLDrawTarget target;
+
+	AGLAttribute frame_attr[1];
+	AGLProgramUniform frame_uniform[1];
+	AGLDrawSource draw_frame;
+	AGLDrawTarget target_frame;
+
+	AGLTexture frame_texture;
+	AGLFramebufferParams frame_buffer_params;
+
+	AGLAttribute screen_attr[1];
+	AGLProgramUniform screen_uniform[2];
+	AGLDrawSource draw_screen;
+	AGLDrawTarget target_screen;
 } g;
 
 static void init(void) {
-#if 0
-	g.draw.program = aGLProgramCreateSimple(shader_vertex, shader_fragment);
-	if (g.draw.program <= 0) {
+	g.draw_screen.program = aGLProgramCreateSimple(shader_vertex_passthrough, shader_fragment_blit);
+	if (g.draw_screen.program <= 0) {
 		aAppDebugPrintf("shader error: %s", a_gl_error);
 		/* \fixme add fatal */
 	}
-#endif
 
-	g.attr[0].name = "av2_pos";
-	g.attr[0].buffer = 0;
-	g.attr[0].size = 2;
-	g.attr[0].type = GL_FLOAT;
-	g.attr[0].normalized = GL_FALSE;
-	g.attr[0].stride = 0;
-	g.attr[0].ptr = vertexes;
+	g.frame_attr[0].name = "av2_pos";
+	g.frame_attr[0].buffer = 0;
+	g.frame_attr[0].size = 2;
+	g.frame_attr[0].type = GL_FLOAT;
+	g.frame_attr[0].normalized = GL_FALSE;
+	g.frame_attr[0].stride = 0;
+	g.frame_attr[0].ptr = vertexes_full_quad;
 
-	g.pun[0].name = "t";
-	g.pun[0].type = AGLAT_Float;
-	g.pun[0].count = 1;
+	g.frame_uniform[0].name = "t";
+	g.frame_uniform[0].type = AGLAT_Float;
+	g.frame_uniform[0].count = 1;
 
-	g.draw.primitive.mode = GL_TRIANGLE_STRIP;
-	g.draw.primitive.count = 4;
-	g.draw.primitive.first = 0;
-	g.draw.primitive.index.buffer = 0;
-	g.draw.primitive.index.data.ptr = 0;
-	g.draw.primitive.index.type = 0;
+	g.draw_frame.primitive.mode = GL_TRIANGLE_STRIP;
+	g.draw_frame.primitive.count = 4;
+	g.draw_frame.primitive.first = 0;
+	g.draw_frame.primitive.index.buffer = 0;
+	g.draw_frame.primitive.index.data.ptr = 0;
+	g.draw_frame.primitive.index.type = 0;
 
-	g.draw.attribs.p = g.attr;
-	g.draw.attribs.n = sizeof g.attr / sizeof *g.attr;
+	g.draw_frame.attribs.p = g.frame_attr;
+	g.draw_frame.attribs.n = sizeof g.frame_attr / sizeof *g.frame_attr;
 
-	g.draw.uniforms.p = g.pun;
-	g.draw.uniforms.n = sizeof g.pun / sizeof *g.pun;
+	g.draw_frame.uniforms.p = g.frame_uniform;
+	g.draw_frame.uniforms.n = sizeof g.frame_uniform / sizeof *g.frame_uniform;
+
+	{
+		AGLTextureUploadData data;
+		data.format = AGLTF_U8_RGBA;
+		data.x = data.y = 0;
+		data.width = 1920;
+		data.height = 1080;
+		data.pixels = 0;
+
+		g.frame_texture = aGLTextureCreate();
+		aGLTextureUpload(&g.frame_texture, &data);
+		g.frame_texture.min_filter = AGLTmF_Linear;
+	}
+
+	g.frame_buffer_params.depth.texture = 0;
+	g.frame_buffer_params.depth.mode = AGLDBM_Texture;
+	g.frame_buffer_params.color = &g.frame_texture;
+
+	g.target_frame.viewport.x = g.target_frame.viewport.y = 0;
+	g.target_frame.viewport.w = 1920;
+	g.target_frame.viewport.h = 1080;
+	g.target_frame.framebuffer = &g.frame_buffer_params;
+
+	g.screen_attr[0].name = "av2_pos";
+	g.screen_attr[0].buffer = 0;
+	g.screen_attr[0].size = 2;
+	g.screen_attr[0].type = GL_FLOAT;
+	g.screen_attr[0].normalized = GL_FALSE;
+	g.screen_attr[0].stride = 0;
+	g.screen_attr[0].ptr = vertexes_full_quad;
+
+	g.screen_uniform[0].name = "frame";
+	g.screen_uniform[0].type = AGLAT_Texture;
+	g.screen_uniform[0].value.texture = &g.frame_texture;
+	g.screen_uniform[0].count = 1;
+
+	g.screen_uniform[1].name = "R";
+	g.screen_uniform[1].type = AGLAT_Vec2;
+	g.screen_uniform[1].count = 1;
+
+	g.draw_screen.primitive.mode = GL_TRIANGLE_STRIP;
+	g.draw_screen.primitive.count = 4;
+	g.draw_screen.primitive.first = 0;
+	g.draw_screen.primitive.index.buffer = 0;
+	g.draw_screen.primitive.index.data.ptr = 0;
+	g.draw_screen.primitive.index.type = 0;
+
+	g.draw_screen.attribs.p = g.screen_attr;
+	g.draw_screen.attribs.n = sizeof g.screen_attr / sizeof *g.screen_attr;
+
+	g.draw_screen.uniforms.p = g.screen_uniform;
+	g.draw_screen.uniforms.n = sizeof g.screen_uniform / sizeof *g.screen_uniform;
+
+	aGLAttributeLocate(g.draw_screen.program, g.screen_attr, g.draw_screen.attribs.n);
+	aGLUniformLocate(g.draw_screen.program, g.screen_uniform, g.draw_screen.uniforms.n);
 
 	g.merge.blend.enable = 0;
 	g.merge.depth.mode = AGLDM_Disabled;
@@ -152,11 +222,11 @@ static void init(void) {
 
 static void resize(ATimeUs timestamp, unsigned int old_w, unsigned int old_h) {
 	(void)(timestamp); (void)(old_w); (void)(old_h);
-	g.target.viewport.x = g.target.viewport.y = 0;
-	g.target.viewport.w = a_app_state->width;
-	g.target.viewport.h = a_app_state->height;
+	g.target_screen.viewport.x = g.target_screen.viewport.y = 0;
+	g.target_screen.viewport.w = a_app_state->width;
+	g.target_screen.viewport.h = a_app_state->height;
 
-	g.target.framebuffer = 0;
+	g.target_screen.framebuffer = 0;
 }
 
 static void paint(ATimeUs timestamp, float dt) {
@@ -169,24 +239,26 @@ static void paint(ATimeUs timestamp, float dt) {
 			const int size = readFileContents(shader_filename, shader_source, sizeof(shader_source) - 1);
 			if (size > 0) {
 				shader_source[size] = '\0';
-				const AGLProgram new_program = aGLProgramCreateSimple(shader_vertex, shader_source);
+				const AGLProgram new_program = aGLProgramCreateSimple(shader_vertex_passthrough, shader_source);
 				if (new_program <= 0) {
 					MSG("shader error: %s", a_gl_error);
 				} else {
 					MSG("read new shader size %d", size);
-					g.draw.program = new_program;
 
-					aGLAttributeLocate(g.draw.program, g.attr, g.draw.attribs.n);
-					aGLUniformLocate(g.draw.program, g.pun, g.draw.uniforms.n);
+					if (g.draw_frame.program > 0)
+						aGLProgramDestroy(g.draw_frame.program);
+					g.draw_frame.program = new_program;
+
+					aGLAttributeLocate(g.draw_frame.program, g.frame_attr, g.draw_frame.attribs.n);
+					aGLUniformLocate(g.draw_frame.program, g.frame_uniform, g.draw_frame.uniforms.n);
 				}
 			}
 		}
 	}
 
-
-	if (g.draw.program > 0) {
-		g.pun[0].value.pf = &t;
-		aGLDraw(&g.draw, &g.merge, &g.target);
+	if (g.draw_frame.program > 0) {
+		g.frame_uniform[0].value.pf = &t;
+		aGLDraw(&g.draw_frame, &g.merge, &g.target_frame);
 	} else {
 		AGLClearParams clear;
 		(void)(dt);
@@ -198,8 +270,12 @@ static void paint(ATimeUs timestamp, float dt) {
 		clear.depth = 0;
 		clear.bits = AGLCB_Everything;
 
-		aGLClear(&clear, &g.target);
+		aGLClear(&clear, &g.target_frame);
 	}
+
+	float R[2] = { a_app_state->width, a_app_state->height };
+	g.screen_uniform[1].value.pf = R;
+	aGLDraw(&g.draw_screen, &g.merge, &g.target_screen);
 }
 
 void attoAppInit(struct AAppProctable *proctable) {
