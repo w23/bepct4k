@@ -1,9 +1,14 @@
+#define AUDIO_IMPLEMENT
+#include "aud_io.h"
+
 #include "atto/app.h"
 
 #define ATTO_GL_H_IMPLEMENT
 #include "atto/gl.h"
 
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define MSG(...) aAppDebugPrintf(__VA_ARGS__)
 
@@ -229,8 +234,22 @@ static void resize(ATimeUs timestamp, unsigned int old_w, unsigned int old_h) {
 	g.target_screen.framebuffer = 0;
 }
 
+static struct {
+	int pos;
+	int paused;
+	int start, end;
+	int set;
+} loop;
+
+static struct {
+	float *data;
+	size_t samples;
+	float samples_per_row;
+} audio;
+
 static void paint(ATimeUs timestamp, float dt) {
-	float t = timestamp * 1e-6f;
+	(void)timestamp;
+	(void)(dt);
 
 	{
 		const FrFileTime current_file_time = readFileTime(shader_filename);
@@ -257,11 +276,11 @@ static void paint(ATimeUs timestamp, float dt) {
 	}
 
 	if (g.draw_frame.program > 0) {
-		g.frame_uniform[0].value.pf = &t;
+		const float time_row = (float)loop.pos / audio.samples_per_row;
+		g.frame_uniform[0].value.pf = &time_row;
 		aGLDraw(&g.draw_frame, &g.merge, &g.target_frame);
 	} else {
 		AGLClearParams clear;
-		(void)(dt);
 
 		clear.a = 1.f;
 		clear.r = 1.f;//sinf(t*.1f);
@@ -278,6 +297,26 @@ static void paint(ATimeUs timestamp, float dt) {
 	aGLDraw(&g.draw_screen, &g.merge, &g.target_screen);
 }
 
+static void audioCallback(void *unused, float *samples, int nsamples) {
+	(void)unused;
+	if (loop.paused || !audio.data) {
+		memset(samples, 0, sizeof(*samples) * nsamples * 2);
+		if (!loop.paused)
+			loop.pos = (loop.pos + nsamples) % audio.samples;
+		return;
+	}
+
+	for (int i = 0; i < nsamples; ++i) {
+		samples[i * 2] = audio.data[loop.pos * 2];
+		samples[i * 2 + 1] = audio.data[loop.pos * 2 + 1];
+		loop.pos = (loop.pos + 1) % audio.samples;
+
+		if (loop.set == 2)
+			if (loop.pos >= loop.end)
+				loop.pos = loop.start;
+	}
+}
+
 void attoAppInit(struct AAppProctable *proctable) {
 	aGLInit();
 	init();
@@ -285,4 +324,24 @@ void attoAppInit(struct AAppProctable *proctable) {
 	proctable->resize = resize;
 	proctable->paint = paint;
 	proctable->key = keyPress;
+
+	FILE *f = fopen("music.raw", "rb");
+	if (!f) {
+		MSG("Cannot open music.raw");
+	} else {
+		fseek(f, 0, SEEK_END);
+		const size_t size = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		audio.data = (float*)malloc(size);
+		audio.samples = size / (sizeof(float) * 2);
+		fread(audio.data, size, 1, f);
+		fclose(f);
+	}
+
+	audio.samples_per_row = /*FIXME*/5512;
+
+	loop.start = 0;
+	loop.end = audio.samples ? audio.samples : 44100 * 60;
+
+	audioOpen(44100, 2, nullptr, audioCallback, nullptr, nullptr);
 }
