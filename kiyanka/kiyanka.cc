@@ -81,12 +81,6 @@ static const char shader_filename[] = "shader.frag";
 static FrFileTime shader_file_timestamp;
 char shader_source[MAX_SHADER_SOURCE_SIZE];
 
-static void keyPress(ATimeUs timestamp, AKey key, int pressed) {
-	(void)(timestamp); (void)(pressed);
-	if (key == AK_Esc)
-		aAppTerminate(0);
-}
-
 static const char shader_vertex_passthrough[] =
 	"attribute vec2 av2_pos;\n"
 	"void main() {\n"
@@ -244,8 +238,73 @@ static struct {
 static struct {
 	float *data;
 	size_t samples;
-	float samples_per_row;
+	int samples_per_row;
 } audio;
+
+const int pattern_length = 16;
+
+static void timeShift(int rows) {
+	int next_pos = loop.pos + rows * audio.samples_per_row;
+	const int loop_length = loop.end - loop.start;
+	while (next_pos < loop.start)
+		next_pos += loop_length;
+	while (next_pos > loop.end)
+		next_pos -= loop_length;
+	loop.pos = next_pos;
+	MSG("pos = %d", next_pos / audio.samples_per_row);
+}
+
+static void keyPress(ATimeUs timestamp, AKey key, int pressed) {
+	(void)(timestamp);
+
+	if (!pressed)
+		return;
+
+	switch (key) {
+	case AK_Esc:
+		//audioClose();
+		aAppTerminate(0);
+		break;
+
+	case AK_Left:
+		timeShift(-pattern_length);
+		break;
+	case AK_Right:
+		timeShift(pattern_length);
+		break;
+	case AK_Up:
+		timeShift(4*pattern_length);
+		break;
+	case AK_Down:
+		timeShift(-4*pattern_length);
+		break;
+
+	case AK_Space:
+		loop.paused ^= 1;
+		break;
+
+	case AK_Z:
+		switch (loop.set) {
+		case 0:
+			loop.start = ((loop.pos / audio.samples_per_row) / pattern_length) * audio.samples_per_row * pattern_length;
+			loop.set = 1;
+			break;
+		case 1:
+			loop.end = (((loop.pos / audio.samples_per_row) + (pattern_length-1)) / pattern_length) * audio.samples_per_row * pattern_length;
+			loop.set = 2;
+			break;
+		case 2:
+			loop.start = 0;
+			loop.end = audio.samples;
+			loop.set = 0;
+		}
+		break;
+
+	default:
+		MSG("Unknown key %d", key);
+		break;
+	}
+}
 
 static void paint(ATimeUs timestamp, float dt) {
 	(void)timestamp;
