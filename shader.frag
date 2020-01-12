@@ -39,6 +39,8 @@ mat2 Rm(float a) { float c=cos(a), s=sin(a); return mat2(c,s,-s,c); }
 
 mat2 bm;
 
+float PI = 3.1415926;
+
 float wball;
 float wgnd;
 float w(vec3 p) {
@@ -46,7 +48,9 @@ float w(vec3 p) {
     bp.xz *= bm;
     bp.yz *= bm;
     float box = box3(bp, vec3(.5));
-    wball = length(rep3(p, vec3(.4 + .1*sin(t)))) - .15;
+		float phase = t/8., ph = fract(phase) ;
+		phase = floor(phase) + mix(ph, ph * ph, step(32., t));
+    wball = length(rep3(p, vec3(.4 + .1*sin(phase * PI * 2.)))) - .15;
     float h = noise2(p.xz) + .25 * noise2(p.xz*2.3+vec2(t));
     wgnd = p.y + .5 + h*h;
     //max(ball, p.y - .8 * sin(t))
@@ -68,12 +72,12 @@ void main() {
     //fragColor = vec4(noise2(uv*5.)); return;
     
     //t = iTime;
-    bm = Rm(t);
+    bm = Rm(t/4.);
 
 	vec3 skycolor = vec3(.4, .7, .9);
     vec3 C = skycolor;
   
-    mat2 mc = Rm(.2), mc2 = Rm(t*.3);
+    mat2 mc = Rm(.2), mc2 = Rm(t/8.);
     vec3 O = vec3(0., 0., 3.);
     vec3 D = normalize(vec3(uv, -2.));
    	O.yz *= mc; D.yz *= mc;
@@ -89,7 +93,7 @@ void main() {
         l += d * .6;
         if (d < .001 * l || l > L) break;
     }
-    
+
     if (l < L) {
         float spec = 25.;
         vec3 alb = vec3(1.);
@@ -115,6 +119,8 @@ void main() {
         
         C = mix(C, c, smoothstep(L, L*.5, l));
     }
+
+		C *= pow(smoothstep(0., 32., t), 2.);
 
     // Output to screen
     gl_FragColor = vec4(sqrt(C), .0);
