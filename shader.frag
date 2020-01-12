@@ -62,7 +62,7 @@ vec3 wn(vec3 p) {
 void main() {
     // Normalized pixel coordinates (from 0 to 1)
 		vec2 iResolution = vec2(1920., 1080.);
-    vec2 uv = gl_FragCoord/iResolution.xy - .5;
+    vec2 uv = gl_FragCoord.xy/iResolution.xy - .5;
     uv.x *= iResolution.x / iResolution.y;
     
     //fragColor = vec4(noise2(uv*5.)); return;
