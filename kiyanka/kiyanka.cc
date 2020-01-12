@@ -354,6 +354,14 @@ static void paint(ATimeUs timestamp, float dt) {
 	float R[2] = { a_app_state->width, a_app_state->height };
 	g.screen_uniform[1].value.pf = R;
 	aGLDraw(&g.draw_screen, &g.merge, &g.target_screen);
+
+	/*
+	{
+		char title[32];
+		snprintf(title, 31, "Kiyanka %.3f", loop.pos / (float)audio.samples_per_row);
+		SetWindowTextA(GetActiveWindow(), title);
+	}
+	*/
 }
 
 static void audioCallback(void *unused, float *samples, int nsamples) {
