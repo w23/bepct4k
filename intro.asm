@@ -230,7 +230,8 @@ _start:
 
 	FNCALL wglGetProcAddress, glCreateShaderProgramv
 	FNCALL eax, GL_FRAGMENT_SHADER, 1, src_main
-%if 0 ;def DEBUG
+%ifdef DEBUG
+	push eax
 	push infolog
 	push 0
 	push 1023
@@ -242,6 +243,7 @@ _start:
 	push infolog
 	push 0
 	call MessageBoxA
+	pop eax
 %endif
 	mov esi, eax
 	FNCALL wglGetProcAddress, glUseProgram
