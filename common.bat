@@ -3,10 +3,15 @@ set LIBS= /LIBPATH:libs opengl32.lib winmm.lib kernel32.lib user32.lib gdi32.lib
 set SHADER_MINIFIER=deps\shader_minifier.exe
 set NASM=deps\nasm-3.01\nasm.exe
 set CRINKLER=deps\crinkler30a\win64\crinkler.exe
+set OBJ=obj
+set OUT=out
 
 if not exist %SHADER_MINIFIER% goto get_deps
 if not exist %NASM% goto get_deps
 if not exist %CRINKLER% goto get_deps
+
+mkdir %OBJ% %OUT%
+
 goto end
 
 :get_deps

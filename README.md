@@ -4,7 +4,7 @@ Just add `4klang.inc` and `shader.frag` files and run `build-slow.bat` to build 
 
 ## How to use
 ### Make music
-1. Make music in [4klang](https://github.com/hzdgopher/4klang)
+1. Make music using [4klang](https://github.com/hzdgopher/4klang)
 2. Export it into `4klang.inc`, replacing existing file here 
 
 ### Make visuals
@@ -22,7 +22,7 @@ Just add `4klang.inc` and `shader.frag` files and run `build-slow.bat` to build 
         * `fGlobalTime` with `t`
 
 ### Build
-1. Run `build-fast.bat` to build `intro-fast.exe`
+1. Run `build-fast.bat` to build `out/intro-fast.exe`
 
 ### Usage recommendations
 Use `build-debug.bat` when first porting your shader. It will build a debug configuration that won't have music, will be windowed, will check all gl calls and `MessageBox` in your face about shader compilation errors.

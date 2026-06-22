@@ -10,11 +10,11 @@ set OPTS= ^
 
 REM very slow unpack, avoid /TINYHEADER
 
-%SHADER_MINIFIER% --format nasm -o shader.inc shader.frag || exit /b 1
-%NASM% -fwin32 -o intro.obj -DDEBUG intro.asm || exit /b 2
+%SHADER_MINIFIER% --format nasm -o %OBJ%\shader.inc shader.frag || exit /b 1
+%NASM% -fwin32 -o %OBJ%\intro.obj -i%OBJ% -DDEBUG src\intro.asm || exit /b 2
 
 %CRINKLER% ^
 	%OPTS% ^
 	%LIBS% ^
-	intro.obj /OUT:intro-debug.exe ^
+	%OBJ%\intro.obj /OUT:%OUT%\intro-debug.exe ^
 	|| exit /b 2

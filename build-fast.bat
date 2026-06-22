@@ -17,13 +17,13 @@ set OPTS= ^
 
 REM very slow unpack, avoid /TINYHEADER
 
-%SHADER_MINIFIER% --format nasm -o shader.inc shader.frag || exit /b 1
-%NASM% -fwin32 -o intro.obj intro.asm || exit /b 2
-%NASM% -fwin32 -o 4klang.obj 4klang.asm || exit /b 3
+%SHADER_MINIFIER% --format nasm -o %OBJ%\shader.inc shader.frag || exit /b 1
+%NASM% -fwin32 -o %OBJ%\intro.obj -i%OBJ% src\intro.asm || exit /b 2
+%NASM% -fwin32 -o %OBJ%\4klang.obj -i%OBJ% src\4klang.asm || exit /b 3
 
 %CRINKLER% ^
 	%OPTS% ^
-	/COMPMODE:FAST /REPORT:report-fast.html ^
+	/COMPMODE:FAST /REPORT:%OUT%\report-fast.html ^
 	%LIBS% ^
-	intro.obj 4klang.obj /OUT:intro-fast.exe ^
+	%OBJ%\intro.obj %OBJ%\4klang.obj /OUT:%OUT%\intro-fast.exe ^
 	|| exit /b 4

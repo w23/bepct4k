@@ -20,3 +20,5 @@ Debug
 Win32
 deps/crinkler*
 deps/nasm*
+obj/
+out/
