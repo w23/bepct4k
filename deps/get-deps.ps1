@@ -14,6 +14,6 @@ function downloadAndUnpack([string]$url, [string]$filename) {
     Expand-Archive $filename -DestinationPath $script_dir -Force
 }
 
-download "https://github.com/laurentlb/Shader_Minifier/releases/download/1.1.6/shader_minifier.exe" "shader_minifier.exe"
-downloadAndUnpack "http://crinkler.net/crinkler22.zip" "crinkler22.zip"
-downloadANdUnpack "https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/win64/nasm-2.14.02-win64.zip" "nasm-2.14.02-win64.zip"
+download "https://github.com/laurentlb/Shader_Minifier/releases/download/1.6.0/shader_minifier.exe" "shader_minifier.exe"
+downloadAndUnpack "https://github.com/runestubbe/Crinkler/releases/download/v3.0a/crinkler30a.zip" "crinkler30a.zip"
+downloadANdUnpack "https://www.nasm.us/pub/nasm/releasebuilds/3.01/win64/nasm-3.01-win64.zip" "nasm-3.01-win64.zip"

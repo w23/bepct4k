@@ -18,5 +18,5 @@ CMakeFiles
 *.sln
 Debug
 Win32
-deps/crinkler22
-deps/nasm-2.14.02
+deps/crinkler*
+deps/nasm*
