@@ -18,4 +18,3 @@ set OPTS= ^
 	|| exit /b 2
 
 %OUT%\dump-music.exe
-move music.raw %OBJ%\
