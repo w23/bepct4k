@@ -24,6 +24,10 @@ Just add `4klang.inc` and `shader.frag` files and run `build-slow.bat` to build 
 ### Build
 1. Run `build-fast.bat` to build `out/intro-fast.exe`
 
+On Linux, run `make -C linux-cross fast` instead: it runs the same toolchain in
+a podman container and puts the binary in the same place. See
+[linux-cross/README.md](linux-cross/README.md).
+
 ### Usage recommendations
 Use `build-debug.bat` when first porting your shader. It will build a debug configuration that won't have music, will be windowed, will check all gl calls and `MessageBox` in your face about shader compilation errors.
 
