@@ -8,11 +8,7 @@
 # the context.
 
 ARG DEBIAN_TAG=trixie-slim
-
-# --- stage 1: fetch the Windows tools and the 32-bit DLLs crinkler reads ----
-# Kept separate so curl/unzip/CA certs and a 100 MB .deb never reach the final
-# image.
-FROM debian:${DEBIAN_TAG} AS tools
+FROM debian:${DEBIAN_TAG}
 
 # Same versions deps/get-deps.ps1 uses for the Windows build.
 ARG CRINKLER_URL=https://github.com/runestubbe/Crinkler/releases/download/v3.0a/crinkler30a.zip
@@ -20,55 +16,81 @@ ARG CRINKLER_SHA256=5fbb0ecdab503cd56780b2db1bed47d9c873a0bb06559e656c554d3c5b80
 ARG SHADER_MINIFIER_URL=https://github.com/laurentlb/Shader_Minifier/releases/download/1.6.0/shader_minifier.exe
 ARG SHADER_MINIFIER_SHA256=054a27326c419a6727fa0afcfd746656ffafb6b87fd2776f252130a271c58c2a
 
-# Crinkler scrapes the export tables of the DLLs the intro imports from, and it
-# only accepts 32-bit ones (it skips PE32+ files). They are not needed to run
-# anything, so instead of pulling all of i386 wine we lift just these out of
-# libwine:i386. Extend the list if you add a lib to LIBS in build.sh.
+# Crinkler reads the export tables of the DLLs the intro imports from, and it
+# accepts 32-bit DLLs only - it skips PE32+ files and then fails with "Cannot
+# find DLL". Nothing loads these, they are read as files, so instead of
+# installing i386 wine (174 packages, +840 MB) we lift the handful we need out
+# of the libwine:i386 archive. Keep in sync with LIBS in build.sh.
 ARG SYSWOW64_DLLS="opengl32 winmm kernel32 user32 gdi32"
 
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates curl unzip \
-	&& rm -rf /var/lib/apt/lists/*
+ENV WINEPREFIX=/opt/wine \
+	WINEARCH=win64 \
+	WINEDEBUG=-all \
+	WINEDLLOVERRIDES="mscoree,mshtml=" \
+	XDG_RUNTIME_DIR=/tmp
 
-WORKDIR /tools
-RUN curl -fsSLo /tmp/crinkler.zip "$CRINKLER_URL" \
-	&& printf '%s  /tmp/crinkler.zip\n' "$CRINKLER_SHA256" | sha256sum -c - \
-	&& unzip -q -d /tmp /tmp/crinkler.zip \
-	&& mv /tmp/crinkler30a/Win64/Crinkler.exe /tools/crinkler.exe \
-	&& rm -rf /tmp/crinkler.zip /tmp/crinkler30a
-RUN curl -fsSLo /tools/shader_minifier.exe "$SHADER_MINIFIER_URL" \
-	&& printf '%s  /tools/shader_minifier.exe\n' "$SHADER_MINIFIER_SHA256" | sha256sum -c -
-
-# cp fails loudly if a DLL is missing, which is the check we want here.
-RUN dpkg --add-architecture i386 \
-	&& apt-get update \
-	&& cd /tmp \
-	&& apt-get download libwine:i386 \
-	&& dpkg-deb -x /tmp/libwine_*_i386.deb /tmp/i386 \
-	&& mkdir -p /tools/syswow64 \
-	&& for dll in $SYSWOW64_DLLS; do \
-		cp "/tmp/i386/usr/lib/i386-linux-gnu/wine/i386-windows/$dll.dll" /tools/syswow64/; \
-	done \
-	&& rm -rf /tmp/i386 /tmp/libwine_*_i386.deb /var/lib/apt/lists/*
-
-# --- stage 2: the build image ----------------------------------------------
-FROM debian:${DEBIAN_TAG}
-
-# wine here is 64-bit only (Debian's wine64): crinkler.exe is a win64 binary,
-# so no i386 multiarch is needed. This image therefore cannot *run* the 32-bit
-# exe it produces.
-#
-# The pruning below is part of this same layer on purpose: deleting files in a
-# later layer hides them without reclaiming any space. Crinkler is a console
-# linker, so wine's graphics, media, browser and developer-tool DLLs are dead
-# weight. Glob-based, so it survives wine updates. These are wine's 64-bit
-# DLLs, used only to *run* Windows programs; the ones crinkler reads exports
-# from are the 32-bit copies placed in syswow64 below.
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends nasm mono-runtime wine \
-	&& rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man \
-	&& cd /usr/lib/x86_64-linux-gnu/wine/x86_64-windows \
-	&& rm -f \
+# Everything happens in this one layer, on purpose: files deleted in a later
+# layer are only hidden, not reclaimed, so the fetched archives, the build-only
+# packages and the pruned wine DLLs all have to go while this layer is still
+# being written.
+RUN set -eu; \
+	\
+	dpkg --add-architecture i386; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		nasm mono-runtime wine \
+		ca-certificates curl unzip; \
+	\
+	# The two Windows tools, pinned and verified. Crinkler's manual documents
+	# every switch build.sh passes, so keep it next to the binary.
+	mkdir -p /opt/tools; \
+	curl -fsSLo /tmp/crinkler.zip "$CRINKLER_URL"; \
+	printf '%s  /tmp/crinkler.zip\n' "$CRINKLER_SHA256" | sha256sum -c -; \
+	unzip -q -d /tmp /tmp/crinkler.zip; \
+	mv /tmp/crinkler30a/Win64/Crinkler.exe /opt/tools/crinkler.exe; \
+	mv /tmp/crinkler30a/manual.txt /opt/tools/crinkler-manual.txt; \
+	mv /tmp/crinkler30a/LICENSE.txt /opt/tools/crinkler-LICENSE.txt; \
+	curl -fsSLo /opt/tools/shader_minifier.exe "$SHADER_MINIFIER_URL"; \
+	printf '%s  /opt/tools/shader_minifier.exe\n' "$SHADER_MINIFIER_SHA256" | sha256sum -c -; \
+	\
+	# The 32-bit DLLs, straight out of the .deb - cp fails loudly if one of
+	# them is missing, which is the check we want. They go where crinkler looks
+	# for them: it rewrites system32 to syswow64 in every PATH entry, the same
+	# way it finds 32-bit DLLs on a 64-bit Windows.
+	cd /tmp; \
+	apt-get download libwine:i386; \
+	dpkg-deb -x /tmp/libwine_*_i386.deb /tmp/i386; \
+	mkdir -p "$WINEPREFIX/drive_c/windows/syswow64"; \
+	for dll in $SYSWOW64_DLLS; do \
+		cp "/tmp/i386/usr/lib/i386-linux-gnu/wine/i386-windows/$dll.dll" \
+			"$WINEPREFIX/drive_c/windows/syswow64/"; \
+	done; \
+	\
+	# Bake the prefix so builds don't pay for it, and make it writable by
+	# whatever uid ends up running the build. wineboot fills system32 with
+	# copies of wine's PE DLLs - half a gigabyte of duplicates - so point them
+	# back at the originals; wine reads these through the filesystem and does
+	# not care that they are symlinks.
+	wineboot -u; \
+	wineserver -w; \
+	chmod -R a+rwX "$WINEPREFIX"; \
+	cd "$WINEPREFIX/drive_c/windows/system32"; \
+	for f in *; do \
+		orig="/usr/lib/x86_64-linux-gnu/wine/x86_64-windows/$f"; \
+		if [ -f "$f" ] && [ ! -L "$f" ] && [ -f "$orig" ]; then ln -sf "$orig" "$f"; fi; \
+	done; \
+	\
+	# Nothing below this point is needed to build an intro.
+	cd /; \
+	apt-get purge -y --autoremove ca-certificates curl unzip; \
+	rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /tmp/crinkler* /tmp/i386 /tmp/libwine_*; \
+	\
+	# Crinkler is a console linker: wine's graphics, media, browser and
+	# developer-tool DLLs are dead weight. Glob-based, so it survives wine
+	# updates. These are the 64-bit DLLs wine loads to *run* Windows programs,
+	# not the 32-bit ones crinkler reads above.
+	cd /usr/lib/x86_64-linux-gnu/wine/x86_64-windows; \
+	rm -f \
 		mshtml.dll mshtml.tlb jscript.dll vbscript.dll ieframe.dll iexplore.exe \
 		msxml*.dll \
 		wined3d.dll d3d*.dll dxgi.dll dxva2.dll ddraw.dll dcomp.dll d2d1.dll \
@@ -79,34 +101,6 @@ RUN apt-get update \
 		*.msstyles \
 		winedbg.exe winefile.exe wordpad.exe notepad.exe taskmgr.exe \
 		msi.dll msiexec.exe
-
-COPY --from=tools /tools/crinkler.exe /tools/shader_minifier.exe /opt/tools/
-
-ENV WINEPREFIX=/opt/wine \
-	WINEARCH=win64 \
-	WINEDEBUG=-all \
-	WINEDLLOVERRIDES="mscoree,mshtml=" \
-	XDG_RUNTIME_DIR=/tmp
-
-# Crinkler resolves DLLs through the Windows PATH, and for every entry naming
-# system32 it looks in syswow64 first - that is how it finds 32-bit DLLs on a
-# 64-bit Windows, and how it finds these. Nothing loads them; they are read as
-# files.
-COPY --from=tools /tools/syswow64/ /opt/wine/drive_c/windows/syswow64/
-
-# Bake the prefix so builds don't pay for it, and make it writable by whatever
-# uid ends up running the build. All in one layer, or the prefix is stored
-# twice. wineboot fills system32 with copies of wine's PE DLLs - half a
-# gigabyte of duplicates - so point them back at the originals; wine reads
-# these through the filesystem and does not care that they are symlinks.
-RUN wineboot -u \
-	&& wineserver -w \
-	&& chmod -R a+rwX /opt/wine \
-	&& cd /opt/wine/drive_c/windows/system32 \
-	&& for f in *; do \
-		orig="/usr/lib/x86_64-linux-gnu/wine/x86_64-windows/$f"; \
-		if [ -f "$f" ] && [ ! -L "$f" ] && [ -f "$orig" ]; then ln -sf "$orig" "$f"; fi; \
-	done
 
 COPY --chmod=0755 build.sh /usr/local/bin/bepct4k-build
 
